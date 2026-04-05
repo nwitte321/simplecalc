@@ -1,0 +1,32 @@
+from fastapi import FastAPI
+import psutil
+import time
+from prometheus_client import Gauge, generate_latest
+from fastapi.responses import Response
+
+app = FastAPI()
+
+# Prometheus metrics
+cpu_usage_gauge = Gauge('cpu_usage_percent', 'CPU usage in percent')
+memory_usage_gauge = Gauge('memory_usage_percent', 'Memory usage in percent')
+network_sent_gauge = Gauge('network_bytes_sent', 'Network bytes sent')
+network_recv_gauge = Gauge('network_bytes_received', 'Network bytes received')
+
+def collect_metrics():
+    cpu = psutil.cpu_percent(interval=1)
+    memory = psutil.virtual_memory().percent
+    net = psutil.net_io_counters()
+
+    cpu_usage_gauge.set(cpu)
+    memory_usage_gauge.set(memory)
+    network_sent_gauge.set(net.bytes_sent)
+    network_recv_gauge.set(net.bytes_recv)
+
+@app.get("/")
+def home():
+    return {"message": "Monitoring Service Running"}
+
+@app.get("/metrics")
+def metrics():
+    collect_metrics()
+    return Response(generate_latest(), media_type="text/plain")
